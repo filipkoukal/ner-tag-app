@@ -235,34 +235,3 @@ load_config_file("config.ini")
 eel.init('web')
 # Start app
 eel.start("index.html") # dont block on this function call
-
-
-
-# TODO:
-# TODAY
-# make doc list more compact, add id numbers to the left of each doc    - Done
-# put on github/gitlab (on polish days)
-# add config file   - Done
-
-
-# LATER
-# add path chooser to export dialogue
-# maybe add a loading indicator on file load
-# toast that file saved succesfully
-# stringing tags (in token options under history) (option for iob tags) (save for later maybe, not needed now)
-
-
-
-# DONE
-# color code entites (automatically asign colors to ents, and color tokens) - Done
-# add token history (probably to check_token_entity function)               - Done
-# create export dialogue (2 formats probably, CONLL and json) (export all vs export only tagged as finished)   - Done
-# resume from previous session (save datadict and have an option to load)   - Done
-# add option to tag document as finished (labeled?, switch document color in doc browser)   - Done
-# add indicator that a document has some tokens labeled but hasnt been tagged as finished (orange color maybe, polish)  - Done
-# add a button to label token an entity in all documents (polish)   - Done
-# give a hint on tokens that have a history but havent been labeled yet (polish) (like a small H in the upper right corner or something)    - Done
-# make button for exporting only finished documents work    - Done
-# add progress bar above doc browser (maybe save for polish days) - Done
-# add a scrollbar   - Done
-# add button to mark all in progress docs as finished   - Done
