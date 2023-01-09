@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>NER Labeling Application</title>
+
+        <link rel="stylesheet" href="style.css">
+        <!-- Bootstrap imports -->
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js" integrity="sha384-oBqDVmMz9ATKxIep9tiCxS/Z9fNfEXiDAYTujMAeBAsjFuCZSmKbSSUnQlmh/jp3" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.min.js" integrity="sha384-cuYeSxntonz0PPNlHhBs68uyIAVpIIOZZ5JqeqvYYIcEL727kskC66kF92t6Xl2V" crossorigin="anonymous"></script>
+        
+        <!-- Include eel.js - note this file doesn't exist in the 'web' directory -->
+        <script type="text/javascript" src="/eel.js"></script>
+        <script type="text/javascript">
+            
+            // entity colors for button highlights
+            entity_colors = [
+                "default",
+                "primary",
+                "success",
+                "danger",
+                "warning", 
+                "info",
+                "secondary",
+                "dark"
+            ]
+            
+            function load_file() {
+                var input = document.createElement('input');
+                input.type = 'file';
+                input.onchange = e => { 
+                   var file = e.target.files[0]; 
+                   eel.load_and_tokenize_file(file.name);
+                }
+                input.click();
+            }
+
+            function display_docs(docs, states){
+                // load docs from python 
+                const list_group = document.getElementById("doc-list");
+                var doc_id_number = 0
+                docs.forEach(doc => {
+                    let color = ""
+                    switch (states[doc_id_number]){
+                        case "unlabeled":
+                            break
+                        case "inprogress":
+                            color = "list-group-item-warning"
+                            break
+                        case "finished":
+                            color = "list-group-item-success"
+                    }
+                    list_group.innerHTML += '<li class="list-group-item list-group-item-action' + color + '" id=doc-' + doc_id_number +
+                    ' onclick="select_doc(\'doc-' + doc_id_number + '\')">'+ 
+                    '<div class="row">' + 
+                    '<div class="col-1">' + doc_id_number + '</div>' +
+                    '<div class="col-11 list-group-text">' + doc + '</div>' +
+                    '</div>' + 
+                    '</li>'
+                doc_id_number++
+                });
+
+                // update progress bar
+                let finished = states.filter(x => x=="finished").length
+                let total = states.length
+                let perc = finished/total * 100
+
+                const progress_bar = document.querySelector("#progress-bar")
+                const progress_bar_label = document.getElementById("progress-bar-label")
+                progress_bar_label.innerHTML = finished + " / " + total
+                progress_bar.style.width = perc + "%"
+
+                const progress_bar_rows = document.querySelectorAll(".progress-row")
+                progress_bar_rows.forEach(row => {
+                    row.classList.remove("d-none")
+                })
+
+
+            }
+            eel.expose(display_docs);
+
+            function select_doc(doc_id){
+                // unhighlight all other docs
+                const unselected_docs = document.querySelectorAll(".list-group-item")
+                unselected_docs.forEach(unselected_doc => {
+                    unselected_doc.classList.remove("active")
+                });
+
+                // highlight selected doc 
+                selected_doc = document.getElementById(doc_id); // global variable
+                selected_doc.classList.add("active")
+                eel.get_doc_tokens(doc_id)
+
+                // remove history when changing docs 
+                const entity_history_list = document.getElementById("entity-history-list")
+                entity_history_list.innerHTML = ""
+                const entity_history_heading = document.getElementById("entity-history-heading")
+                entity_history_heading.classList.add("d-none")
+
+                // unselect token when changing docs and hide entity picker
+                selected_token = null
+                const entity_picker_list = document.getElementById("entity-picker-list");
+                entity_picker_list.innerHTML = "";
+                const entity_picker_heading = document.getElementById("entity-picker-heading")
+                entity_picker_heading.classList.add("d-none")
+
+                // display finish doc checkbox  
+                eel.display_doc_checkbox(doc_id.split("-")[1])
+
+                // hide token options
+                const spread_entity_button = document.getElementById("spread-entity-button")
+                spread_entity_button.classList.add("d-none")
+                const token_options = document.getElementById("token-options-heading")
+                token_options.classList.add("d-none")
+            }
+
+            function display_doc_checkbox(state) {
+                const doc_checkbox_cont = document.getElementById("doc-checkbox-cont")
+                const mark_all_finished = document.getElementById("mark-all-finished")
+                doc_checkbox_cont.classList.remove("d-none")
+                mark_all_finished.classList.remove("d-none")
+                const doc_finished_checkbox = document.getElementById("doc-finished-checkbox")
+                if (state == "finished") {
+                    doc_finished_checkbox.checked = true
+                } else {
+                    doc_finished_checkbox.checked = false
+                }
+            }
+            eel.expose(display_doc_checkbox)
+
+            function display_tokens(tokens, token_entities, token_histories) {
+                // display tokens
+                const token_buttons = document.getElementById("token-buttons")
+                token_buttons.innerHTML = ""
+                let token_id_number = 0
+
+                tokens.forEach(token => {
+                    if (token_entities[token_id_number] == 0){ // do not color default None entity
+                        token_buttons.innerHTML += '<button type="button" class="btn btn-outline-dark m-1 token-btn position-relative" id=token-' + token_id_number +
+                        ' onclick="select_token(\'token-' + token_id_number + '\')">'+ 
+                        token +
+                        '<div class="position-absolute history-helper-pos fw-bold d-none" id="history-helper-'+ token_id_number+'">H</div>' +
+                        '<div class="position-absolute tag-helper-pos fw-bold d-none" id="tag-helper-'+ token_id_number+'"></div>' +
+                        '</button>' 
+                    } else {
+                        token_buttons.innerHTML += '<button type="button" class="btn position-relative btn-' + entity_colors[token_entities[token_id_number]] + ' m-1 token-btn" id=token-' + token_id_number +
+                        ' onclick="select_token(\'token-' + token_id_number + '\')">'+                     
+                        token +
+                        '<div class="position-absolute history-helper-pos fw-bold d-none" id="history-helper-'+ token_id_number+'">H</div>' +
+                        '<div class="position-absolute tag-helper-pos fw-bold" id="tag-helper-'+ token_id_number+'">'+ Object.keys(js_entities)[token_entities[token_id_number]] + '</div>' +
+                        '</button>'
+                    }
+                    if (token_histories[token_id_number] == true){
+                        let history_helper = document.getElementById("history-helper-"+token_id_number)
+                        history_helper.classList.remove("d-none")
+                    }
+                    
+                    
+                    token_id_number++
+                });
+            }
+            eel.expose(display_tokens);
+
+            function select_token(token_id) {
+                const unselected_tokens = document.querySelectorAll(".token-btn");
+                unselected_tokens.forEach(unselected_token => {
+                    unselected_token.classList.remove("active")
+                });
+
+                // highlight selected doc 
+                selected_token = document.getElementById(token_id); // global variable
+                selected_token.classList.add("active");
+
+                eel.check_token_entity(selected_doc.id.split("-")[1], token_id.split("-")[1])
+
+                // display token options
+                const spread_entity_button = document.getElementById("spread-entity-button")
+                spread_entity_button.classList.remove("d-none")
+                const token_options = document.getElementById("token-options-heading")
+                token_options.classList.remove("d-none")
+
+                display_entity_picker(js_entities);
+
+            }
+
+            function check_token_entity(entity_id) {
+                // when a token is selected, check if it has a entity assigned to it, 
+                // if yes then highlight it in entity list, if not then clear highlights
+                const unselected_entities = document.querySelectorAll(".entity-item");
+                        unselected_entities.forEach(unselected_entity => {
+                        unselected_entity.classList.remove("active")
+                    });
+
+                selected_entity = document.getElementById('ent-'+entity_id); // global variable
+                selected_entity.classList.add("active");
+            }
+            eel.expose(check_token_entity)
+
+            function display_entity_picker(entities) {
+                // display entity picker
+                const entity_picker_list = document.getElementById("entity-picker-list");
+                entity_picker_list.innerHTML = "";
+                for (const [key, value] of Object.entries(js_entities)) {
+                    if (value[0] == 0){ // do not color default None entity
+                        entity_picker_list.innerHTML += '<li class="list-group-item list-group-item-action entity-item" id=ent-' + value[0]  + 
+                    ' onclick="select_entity(\'ent-' + value[0] + '\')">'+ value[1] +'</li>'
+                    } else { // color entities according to predefined list
+                        entity_picker_list.innerHTML += '<li class="list-group-item list-group-item-action list-group-item-' + entity_colors[value[0]] + ' entity-item" id=ent-' + value[0]  + 
+                    ' onclick="select_entity(\'ent-' + value[0] + '\')">'+ value[1] +'</li>'
+                    }
+
+                };
+                const entity_picker_heading = document.getElementById("entity-picker-heading")
+                entity_picker_heading.classList.remove("d-none")
+            }
+
+            function display_token_history(history) {
+                // display entity picker
+                const entity_history_list = document.getElementById("entity-history-list");
+                entity_history_list.innerHTML = "";
+                const entity_history_heading = document.getElementById("entity-history-heading")
+                if (Object.keys(history).length != 0){
+                    entity_history_heading.classList.remove("d-none")
+                    for (const [key, value] of Object.entries(history)) {
+                        //if (value[0] == 0){ // do not color default None entity
+                        entity_history_list.innerHTML += '<li class="list-group-item list-group-item-action history-item">'+ 
+                            '<div class="row">' + 
+                            '<div class="col-8">' + js_entities[key][1] + '</div>' + 
+                            '<div class="col-4 text-end">' + value + '</div>' + 
+                            '</div></li>'
+                        //} else { // color entities according to predefined list
+                        //    entity_history_list.innerHTML += '<li class="list-group-item list-group-item-action list-group-item-' + entity_colors[value[0]] + ' history-item">'+ value[1] +'</li>'
+                        //}
+                    };
+                    entity_history_list.classList.add("mb-3")
+                } else {
+                    entity_history_heading.classList.add("d-none")
+                    entity_history_list.classList.remove("mb-3")
+                }
+            }
+            eel.expose(display_token_history)
+
+            function select_entity(entity_id) {
+                const unselected_entities = document.querySelectorAll(".entity-item");
+                unselected_entities.forEach(unselected_entity => {
+                    unselected_entity.classList.remove("active")
+                });
+
+                // highlight selected entity
+                selected_entity = document.getElementById(entity_id); // global variable
+                selected_entity.classList.add("active");
+
+                // update token color
+                if (entity_id.split("-")[1] == 0) {
+                    selected_token.className = "btn position-relative btn-outline-dark m-1 token-btn active"
+                } else {
+                    selected_token.className = 'btn position-relative btn-' + entity_colors[entity_id.split("-")[1]] + ' m-1 token-btn active'
+                }
+                
+                // add history exists helper on token buttons
+                const token_buttons = document.querySelector("#token-buttons")
+                Array.from(token_buttons.children).forEach(token => {
+                    if (token.textContent == selected_token.textContent){
+                        console.log(token.children[0])
+                        if (entity_id.split("-")[1] == 0) {
+                            token.children[0].classList.add("d-none")
+                        } else {
+                            token.children[0].classList.remove("d-none")
+                        }
+                    }
+                })
+
+                // add tag code to tagged token button
+                if (entity_id.split("-")[1] == 0) {
+                    selected_token.children[1].innerHTML = "" 
+                    selected_token.children[1].classList.add("d-none")
+                } else {
+                    selected_token.children[1].innerHTML = Object.keys(js_entities)[parseInt(entity_id.split("-")[1])]
+                    selected_token.children[1].classList.remove("d-none")
+                }
+
+               
+                eel.update_entity(selected_doc.id.split("-")[1], selected_token.id.split("-")[1], entity_id.split("-")[1])
+            }
+
+
+            function load_entities(entities){
+                js_entities = entities; // global variable
+            }
+            eel.expose(load_entities);
+
+            function export_file(){
+                let format = document.querySelector('input[name="formatradio"]:checked').id
+                let export_only_finished = document.getElementById("export-only-marked").checked
+                let path = "./"                
+                console.log(format, export_only_finished)
+
+                eel.export_file(format, export_only_finished, path)
+
+                // hide modal
+                let my_modal_el = document.getElementById('export-modal')
+                let modal = bootstrap.Modal.getInstance(my_modal_el)
+                modal.hide()
+                const modal_bg = document.querySelector(".modal-backdrop")
+                modal_bg.remove()
+            }
+
+            function mark_doc_finished(){
+                const doc_finished_checkbox = document.getElementById("doc-finished-checkbox")
+                eel.set_doc_state(selected_doc.id.split("-")[1], doc_finished_checkbox.checked)
+
+                // update progress bar
+                const progress_bar_label = document.getElementById("progress-bar-label")
+                let finished = parseInt(progress_bar_label.innerHTML.split(" / ")[0])
+                if (doc_finished_checkbox.checked == true){
+                    finished++
+                } else {
+                    finished--
+                }
+                let total = parseInt(progress_bar_label.innerHTML.split(" / ")[1])
+                let perc = finished/total * 100
+
+                const progress_bar = document.querySelector("#progress-bar")
+                progress_bar_label.innerHTML = finished + " / " + total
+                progress_bar.style.width = perc + "%"
+            }
+
+            function highlight_doc_based_on_state(state, previous_state){
+                selected_doc.classList.remove("list-group-item-success", "list-group-item-warning")
+                switch (state) {
+                    case "finished":
+                        selected_doc.classList.add("list-group-item-success")
+                        break
+                    case "inprogress":
+                        selected_doc.classList.add("list-group-item-warning")
+                        const doc_finished_checkbox = document.getElementById("doc-finished-checkbox")
+                        doc_finished_checkbox.checked = false
+                        break
+                    case "unlabeled":
+                        break
+                }
+                if (previous_state == "finished" && state != "finished" ){
+                    // update progress bar
+                    const progress_bar_label = document.getElementById("progress-bar-label")
+                    let finished = parseInt(progress_bar_label.innerHTML.split(" / ")[0])
+                    finished--
+                    let total = parseInt(progress_bar_label.innerHTML.split(" / ")[1])
+                    let perc = finished/total * 100
+
+                    const progress_bar = document.querySelector("#progress-bar")
+                    progress_bar_label.innerHTML = finished + " / " + total
+                    progress_bar.style.width = perc + "%"
+                }
+
+            }
+            eel.expose(highlight_doc_based_on_state)
+
+            function spread_entity(){
+                eel.spread_entity(selected_doc.id.split("-")[1], selected_token.id.split("-")[1], selected_entity.id.split("-")[1])
+            }
+
+            function update_ui_on_token_spread(states){
+                // update document colors
+                update_document_colors(states)
+                // update token view
+                select_doc(selected_doc.id)
+
+            }
+            eel.expose(update_ui_on_token_spread)
+
+            function update_document_colors(states, selected_doc_state="unlabeled"){
+                var doc_id_number = 0
+                states.forEach(state => {
+                    let color = null
+                    switch (state){
+                        case "unlabeled":
+                            break
+                        case "inprogress":
+                            color = "list-group-item-warning"
+                            break
+                        case "finished":
+                            color = "list-group-item-success"
+                    }
+                    let current_doc = document.getElementById("doc-"+doc_id_number)
+                    current_doc.classList.remove("list-group-item-success", "list-group-item-warning")
+                    
+                    if (color != null){
+                        current_doc.classList.add(color)
+                    }
+                    doc_id_number++
+
+                });
+
+                // update progress bar
+                let finished = states.filter(x => x=="finished").length
+                let total = states.length
+                let perc = finished/total * 100
+
+                const progress_bar = document.querySelector("#progress-bar")
+                const progress_bar_label = document.getElementById("progress-bar-label")
+                progress_bar_label.innerHTML = finished + " / " + total
+                progress_bar.style.width = perc + "%"
+
+                if (selected_doc_state == "finished"){
+                    display_doc_checkbox(selected_doc_state)
+                }
+                    
+            }
+            eel.expose(update_document_colors)
+
+            function mark_all_inprogress_finished(){
+                eel.mark_all_inprogress_finished(selected_doc.id.split("-")[1])
+            }
+
+        </script>
+    </head>
+    
+    <body>
+
+        <div class="container m-2">
+            <div class="row">
+
+                <!-- Document picker side -->
+                <div class="col-4 pt-1">
+
+                    <div class="row progress-row d-none">
+                        <h5 class="ps-0">Progress</h5>
+                    </div>
+                    <div class="row progress-row d-none">
+                        <div class="col-9 ps-0">
+                            <div class="progress mt-1">
+                                <div class="progress-bar" id="progress-bar" role="progressbar" aria-label="Label progress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                              </div>
+                        </div>
+                        <div class="col-3 text-end">
+                            <h6 id="progress-bar-label">0 / 20</h6>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <ul class="list-group list-max-height" id="doc-list"></ul>
+                    </div>
+                    <div class="row justify-content-between me-0">
+                        <button type="button" class="btn btn-primary mt-2 col-4" id="load-file" onclick="load_file()">Load text file</button>
+                        <button type="button" class="btn btn-secondary mt-2 col-4" id="export-file" data-bs-toggle="modal" data-bs-target="#export-modal">Export</button>
+                    </div>
+            
+                </div>
+
+
+                <!-- Token labeling side -->
+                <div class="col-8">
+                    <div class="row">
+                        <div class="col-sm mx-auto" id="token-buttons">Choose a document to start labeling.</div>
+                    </div>
+                    <div class="row mt-4 p-1">
+                        <div class="col-sm" id="entity-picker">
+                            <h5 class="d-none" id="entity-picker-heading">Entities</h5>
+                            <ul class="list-group" id="entity-picker-list"></ul>
+                        </div>
+                        <div class="col-sm" id="entity-history">
+                            <h5 class="d-none" id="entity-history-heading">Token history</h5>
+                            <ul class="list-group" id="entity-history-list"></ul>
+                            <h5 class="d-none" id="token-options-heading">Token options</h5>
+                            <button type="button" class="btn btn-primary d-none" id="spread-entity-button" onclick="spread_entity()">Apply token entity<br>to all documents</button>
+                        </div>
+                    </div>
+                    <div class="row mt-4 p-1">
+                        <div class="col-sm ms-2 ps-3" >
+                            <div class="row" >
+                                <div class="form-check d-none" id="doc-checkbox-cont" >
+                                    <input class="form-check-input" type="checkbox" value="" id="doc-finished-checkbox" onclick="mark_doc_finished()">
+                                    <label class="form-check-label" for="doc-finished-checkbox">
+                                    Mark document as finished
+                                    </label>
+                            </div>
+                            <div class="row d-none" id="mark-all-finished">
+                                <button type="button" class="btn btn-warning mt-5 col-4" onclick="mark_all_inprogress_finished()">Mark all in progress documents as finished</button>
+                            </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+
+                </div>
+
+                <!-- Export modal -->
+                <div class="modal fade" id="export-modal" tabindex="-1" aria-labelledby="export-modal-label" aria-hidden="true">
+                    <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="export-modal">Export file</h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form class="row justify-content-md-center">
+                                <div class="mb-3 form-check">
+                                    <input class="form-check-input" type="radio" name="formatradio" id="jsonradio" checked>
+                                    <label class="form-check-label" for="jsonradio">
+                                      JSON
+                                    </label>
+                                  </div>
+                                  <div class="mb-3 form-check">
+                                    <input class="form-check-input" type="radio" name="formatradio" id="conllradio">
+                                    <label class="form-check-label" for="conllradio">
+                                      CoNLL-2003
+                                    </label>
+                                  </div>
+                                  <div class="mb-3 form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="export-only-marked">
+                                    <label class="form-check-label" for="export-only-marked">Export only documents marked as finished</label>
+                                  </div>
+                                  
+                              </form>
+                        </div>
+                        <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" onclick="export_file()">Export</button>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+
+
+
+            </div>
+
+        </div>
+    </body>
+</html>

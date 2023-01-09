@@ -1,0 +1,5 @@
+STK a Emise na Peugeota. hned domluven termín na 5.1.2011 na 10 00 v Citroenu ve veselí na emise, pak rovnou na STK.\nAlešovi dána událost do kalendáře
+Auta v ALVAO: VŤ, AS, RG, RJ - Škoda Auto. 1 1500\n7 830\n6 1390\n6 750\n5 3050\n4 830\n3 1280\n3 2200\n\nPrůměrně od březen srpen 1.970 Km měsíc 10.800 Kč měsíc\nPrůměrně od leden srpen 1.000 Km měsíc 5.500 Kč měsíc\nOd září zvýšil počet cest na 2x\nVe zkušební době využíval své auto bez náhrad\nNově od září bude mít proplácené cesťáky
+SD MR - Kontrolovat datum načítané z emailové zprávy. Honzo, já to nějak nechápu. o \nZdá se to být opravené, ale něco je stále špatně mrkni na to \nAhoj Aleš\nna web jsem právě vydal opravenou verzi ALVAO Service Desk Mailbox Reader verze 7.1.229 \nje zde opraveno T27622ALVAO SD, MR Zprávy z EWS se vyčítají s posunutým časem
+OMV karty. zjistit jak by se daly získat, i když bychom neměli spotřebu 10 000l měsíc
+Výměna pneu. je potřeba vyměnit zimní pneu za letní
