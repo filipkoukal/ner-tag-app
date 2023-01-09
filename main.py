@@ -47,6 +47,7 @@ def load_and_tokenize_file(file_name):
 
         eel.display_docs(lines, [doc["state"] for doc in data_dict.values()])
     else:
+        # resume labeling from json file
         with open(file_name, "r", encoding="utf8") as json_fp:
             data_dict = json.load(json_fp)
         
