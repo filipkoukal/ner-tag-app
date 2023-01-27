@@ -25,7 +25,7 @@ To load a file you have to press the "Load text file" button. You should use a p
 2. Document browser
     - You can select a document to label by clicking on it 
 3. Token view
-    - After selecting a document, its token will appear in the token view
+    - After selecting a document, its tokens will appear in the token view
     - From here you can click on any token and assign a named entity to it from the entity picker
 4. Entity picker
     - Used to assign entites to the selected token
@@ -34,7 +34,6 @@ To load a file you have to press the "Load text file" button. You should use a p
     - If a token has been labeled previously, its history will appear here
 6. Document options
     - Used to mark the currently selected document or all in progress (orange) documents as finished
-explain general usage (have a picture of app in a real scenario) 
 
 ### Token history
 If an entity has been assigned to a particular token, then that token has a recorded history of all previous assignments (in the currently selected document and other documents). A small H in the upper right corner of the token is used to signalize if it has been previously tagged. In addition, a token with an existing history will have its previous assignments listed under the Token history section in right part of the window, under individual tokens. 
